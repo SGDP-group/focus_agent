@@ -11,5 +11,6 @@ dependencies = [
     "langchain-groq>=1.1.1",
     "langchain-openai>=1.1.7",
     "langgraph>=1.0.5",
+    "langgraph-cli[inmem]>=0.4.11",
     "trustcall>=0.0.39",
 ]
