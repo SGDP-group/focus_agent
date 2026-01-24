@@ -1,6 +1,9 @@
 from langchain_groq import ChatGroq
+from dotenv import load_dotenv
 
-model = ' "qwen/qwen3-32b"'
+load_dotenv()
+
+model = 'moonshotai/kimi-k2-instruct-0905'
 
 llm = ChatGroq(
     model=model,

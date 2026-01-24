@@ -1,8 +1,10 @@
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
+from langchain_core.tools import tool
 from src.state import Task
 from src.llm import llm
 
+@tool
 def break_task_to_steps(task: str) -> Task:
     """
     Uses an LLM to break a high-level task into actionable steps
@@ -14,7 +16,7 @@ def break_task_to_steps(task: str) -> Task:
     """
 
     # 1) Create output parser based on the Task schema
-    parser = PydanticOutputParser(pydantic_class=Task)
+    parser = PydanticOutputParser(pydantic_object=Task)
 
     # 2) Build the prompt
     prompt = PromptTemplate.from_template(
@@ -36,7 +38,7 @@ def break_task_to_steps(task: str) -> Task:
         format_instructions=parser.get_format_instructions()
     )
 
-    response = llm(formatted_prompt)
+    response = llm.invoke(formatted_prompt)
 
     # 5) Parse the structured response
-    return parser.parse(response)
+    return parser.parse(response.content)
