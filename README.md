@@ -4,21 +4,20 @@ A LangGraph agent that breaks down complex tasks into actionable steps using LLM
 
 ## Features
 
-- Breaks down high-level tasks into structured, actionable subtasks
-- Uses LangChain with Pydantic for structured output
+- Breaks down high-level tasks into structured, actionable subtasks with recursive `Task` models
+- Uses LangChain with Pydantic for structured output parsing
 - Built with LangGraph for agent orchestration
-- Clean, raw task object output
+- Powered by Groq LLM (`moonshotai/kimi-k2-instruct-0905` by default)
+- Optional LangSmith tracing for debugging and monitoring
 
 ## Prerequisites
 
-- Python 3.11 or higher
-- uv (Python package manager)
+- **Python 3.11** or higher
+- **[uv](https://docs.astral.sh/uv/)** — fast Python package manager
 
-## Installation
+## Setup
 
 ### 1. Install uv
-
-If you don't have uv installed, run one of the following commands:
 
 **Linux/macOS:**
 ```bash
@@ -35,86 +34,79 @@ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 pip install uv
 ```
 
-### 2. Clone and Setup the Project
+### 2. Clone the Repository
 
 ```bash
-# Clone the repository
 git clone <your-repo-url>
 cd focus_agent
-
-# Install dependencies using uv
-uv sync
-
-# Create a .env file with your API keys
-touch .env
 ```
 
-### 3. Environment Configuration
+### 3. Install Dependencies
 
-Add your API keys to the `.env` file:
+```bash
+uv sync
+```
+
+This installs all dependencies defined in `pyproject.toml`, including `langchain`, `langchain-groq`, `langgraph`, `trustcall`, and others.
+
+### 4. Configure Environment Variables
+
+Create a `.env` file in the project root:
+
+```bash
+cp .env.example .env   # or create manually
+```
+
+Add the following to `.env`:
 
 ```env
-# Required: Groq API Key (for the LLM)
+# Required — Groq API key for the LLM
 GROQ_API_KEY=your_groq_api_key_here
 
-# Optional: LangSmith API Key (for tracing)
+# Optional — LangSmith API key for tracing
 LANGSMITH_API_KEY=your_langsmith_api_key_here
 ```
 
-**Getting API Keys:**
+**Where to get API keys:**
 
-- **Groq API Key**: Sign up at [https://console.groq.com/](https://console.groq.com/) and get your API key
-- **LangSmith API Key**: Optional, for tracing and monitoring at [https://smith.langchain.com/](https://smith.langchain.com/)
+- **Groq**: Sign up at [console.groq.com](https://console.groq.com/) and generate an API key
+- **LangSmith** *(optional)*: Sign up at [smith.langchain.com](https://smith.langchain.com/) for tracing and monitoring
 
-## Usage
+> **Note:** If `LANGSMITH_API_KEY` is not set in `.env`, you will be prompted to enter it at runtime.
 
-### Method 1: Development Server
+## Running the Agent
 
-Start the LangGraph development server:
+### Option 1: LangGraph Development Server
 
 ```bash
 uv run langgraph dev
 ```
 
-This will start a local development server where you can interact with the agent through a web interface or API.
+This starts a local dev server with a web UI and API powered by the graph defined in `langgraph.json` (`src/graph.py:graph`). You can interact with the agent through the LangGraph Studio interface.
 
-### Method 2: Direct Python Usage
-
-Run the agent directly from Python:
+### Option 2: Direct Python Invocation
 
 ```bash
 uv run python -c "
 from src.graph import graph
 from langchain_core.messages import HumanMessage
 
-# Test the agent
 result = graph.invoke({'messages': [HumanMessage(content='organize a birthday party')]})
 print(result['messages'][-1].content)
 "
 ```
 
-### Method 3: Import in Your Code
+### Option 3: Import in Your Own Code
 
 ```python
 from src.graph import graph
 from langchain_core.messages import HumanMessage
 
-# Use the agent
-def break_down_task(task_description):
+def break_down_task(task_description: str) -> str:
     result = graph.invoke({'messages': [HumanMessage(content=task_description)]})
     return result['messages'][-1].content
 
-# Example
-task_breakdown = break_down_task("plan a vacation")
-print(task_breakdown)
-```
-
-## Example Output
-
-When you input "organize a birthday party", the agent returns:
-
-```
-description='Organize a birthday party' status='pending' subtasks=[Task(description='Set a budget', status='pending', subtasks=[]), Task(description='Choose a date and time', status='pending', subtasks=[]), Task(description='Create a guest list', status='pending', subtasks=[]), Task(description='Select and book a venue', status='pending', subtasks=[]), Task(description='Send invitations', status='pending', subtasks=[]), Task(description='Plan the menu and order food', status='pending', subtasks=[]), Task(description='Order or bake a birthday cake', status='pending', subtasks=[]), Task(description='Arrange decorations', status='pending', subtasks=[]), Task(description='Organize entertainment or activities', status='pending', subtasks=[]), Task(description='Confirm RSVPs one week before', status='pending', subtasks=[]), Task(description='Purchase party favors', status='pending', subtasks=[]), Task(description='Set up the venue on the day', status='pending', subtasks=[]), Task(description='Clean up after the party', status='pending', subtasks=[])]
+print(break_down_task("plan a vacation"))
 ```
 
 ## Project Structure
@@ -122,63 +114,58 @@ description='Organize a birthday party' status='pending' subtasks=[Task(descript
 ```
 focus_agent/
 ├── src/
-│   ├── graph.py          # LangGraph setup and configuration
-│   ├── llm.py           # LLM configuration (Groq)
-│   ├── node.py          # Agent nodes and system prompts
-│   ├── state.py         # Pydantic models for state management
-│   ├── tools.py         # Task breakdown tool
-│   └── utils.py         # Utility functions
-├── pyproject.toml       # Project dependencies and metadata
-├── README.md           # This file
-└── .env                # Environment variables (create this)
+│   ├── graph.py        # LangGraph graph definition (entry point for langgraph dev)
+│   ├── llm.py          # Groq LLM configuration
+│   ├── node.py         # Assistant node, system prompt, and tool binding
+│   ├── state.py        # Pydantic models: Task (recursive) and MainState
+│   ├── tools.py        # break_task_to_steps tool using structured output
+│   └── utils.py        # Helper to load env vars with fallback prompt
+├── agent.py            # Alternate graph build with in-memory checkpointer
+├── state.py            # Alternate PydanticState (with servers field)
+├── logger.py           # Basic logging setup
+├── langgraph.json      # LangGraph CLI/dev server configuration
+├── pyproject.toml      # Project metadata and dependencies
+├── .env                # Environment variables (not committed — listed in .gitignore)
+└── README.md
 ```
 
 ## Configuration
 
-### LLM Model
+### Changing the LLM Model
 
-The agent uses Groq's `moonshotai/kimi-k2-instruct-0905` model by default. You can change this in `src/llm.py`:
+Edit `src/llm.py` to use a different Groq-supported model:
 
 ```python
 model = 'llama-3.1-70b-versatile'  # or any other Groq model
 ```
 
-### Available Groq Models
+### LangSmith Tracing
 
-- `llama-3.1-70b-versatile`
-- `llama-3.1-8b-instant`
-- `mixtral-8x7b-32768`
-- `gemma-2-9b-it`
+Tracing is enabled by default in `src/graph.py`. To disable it, remove or comment out:
+
+```python
+os.environ["LANGSMITH_TRACING"] = "true"
+os.environ["LANGSMITH_PROJECT"] = "langchain-academy"
+```
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **"Field required" error**: Ensure your `.env` file contains the required API keys
-2. **Import errors**: Run `uv sync` to ensure all dependencies are installed
-3. **Model not available**: Check if the specified model is available in your Groq account
-
-### Debug Mode
-
-Enable debug logging by setting environment variables:
-
-```bash
-export LANGSMITH_TRACING=true
-export LANGSMITH_PROJECT="focus-agent-debug"
-```
+| Issue | Solution |
+|---|---|
+| **Missing API key error** | Ensure `.env` contains `GROQ_API_KEY` |
+| **Import errors** | Run `uv sync` to install all dependencies |
+| **Model not available** | Verify the model name is valid in your Groq account |
+| **Prompted for LANGSMITH_API_KEY** | Either add it to `.env` or press Enter to skip |
 
 ## Development
 
 ### Adding New Tools
 
-1. Create your tool function in `src/tools.py`
-2. Decorate with `@tool`
-3. Add to the tools list in `src/node.py`
-4. Update the system prompt as needed
+1. Define your tool function in `src/tools.py` using the `@tool` decorator
+2. Add it to the `tools` list in `src/node.py`
+3. Update the system prompt in `src/node.py` if needed
 
-### Testing
-
-Run the test suite:
+### Quick Tool Test
 
 ```bash
 uv run python -c "from src.tools import break_task_to_steps; print(break_task_to_steps.invoke({'task': 'test task'}))"
