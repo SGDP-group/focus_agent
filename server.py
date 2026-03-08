@@ -8,6 +8,7 @@ from src.task_breaker.graph import graph
 from src.task_breaker.state import MainState, Task
 from src.helper.graph import helper_graph
 from langchain_core.messages import HumanMessage
+from state import PydanticState
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -26,7 +27,7 @@ class AgentRequest(BaseModel):
     """Request model for agent invocation"""
     message: str = Field(..., description="User message to process")
     user_id: Optional[str] = Field(None, description="Optional user ID for tracking")
-
+    session_id: Optional[str] = Field(None, description="Optional session ID for tracking")
 
 class TaskResponse(BaseModel):
     """Response model for tasks"""
@@ -52,7 +53,7 @@ async def health_check():
     return {"status": "ok"}
 
 
-@app.post("/invoke", response_model=AgentResponse)
+@app.post("/invoke-task-breakdown", response_model=AgentResponse)
 async def invoke_agent(request: AgentRequest):
     """
     Invoke the focus agent with a user message.
@@ -94,42 +95,6 @@ async def invoke_agent(request: AgentRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/stream")
-async def stream_agent(request: AgentRequest):
-    """
-    Stream the focus agent response with intermediate steps.
-    
-    Args:
-        request: AgentRequest containing the message to process
-        
-    Returns:
-        Streaming response with intermediate states
-    """
-    try:
-        from fastapi.responses import StreamingResponse
-        import json
-        
-        # Create initial state with the user message
-        initial_state = {
-            "messages": [HumanMessage(content=request.message)],
-            "tasks": []
-        }
-        
-        logger.info(f"Streaming message: {request.message}")
-        
-        async def event_generator():
-            # Stream events from the graph
-            for event in graph.stream(initial_state):
-                # Format event as JSON and send
-                yield f"data: {json.dumps(event, default=str)}\n\n"
-        
-        return StreamingResponse(event_generator(), media_type="text/event-stream")
-        
-    except Exception as e:
-        logger.error(f"Error streaming agent: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.post("/invoke_helper", response_model=AgentResponse)
 async def invoke_helper(request: AgentRequest):
     """
@@ -143,15 +108,14 @@ async def invoke_helper(request: AgentRequest):
     """
     try:
         # Create initial state with the user question
-        initial_state = {
-            "messages": [HumanMessage(content=request.message)],
-            "context": []
-        }
+        initial_state = {"messages": [HumanMessage(content=request.message)],}
         
+        user_id = request.user_id
+        session_id = request.session_id
         logger.info(f"Processing question: {request.message}")
-        
-        # Invoke the graph
-        result = helper_graph.invoke(initial_state)
+        config = {"configurable": {"thread_id": session_id}, "user_id": user_id}
+   
+        result = helper_graph.invoke(initial_state, config=config)
         
         # Get the last message from the agent
         messages = result.get("messages", [])
@@ -161,7 +125,7 @@ async def invoke_helper(request: AgentRequest):
             success=True,
             message=str(last_message),
             tasks=[],  # No tasks for helper
-            user_id=request.user_id
+            user_id=user_id
         )
         
     except Exception as e:
@@ -185,16 +149,17 @@ async def stream_helper(request: AgentRequest):
         import json
         
         # Create initial state with the user question
-        initial_state = {
-            "messages": [HumanMessage(content=request.message)],
-            "context": []
-        }
+        initial_state = {"messages": [HumanMessage(content=request.message)]}
         
         logger.info(f"Streaming question: {request.message}")
+        user_id = request.user_id
+        session_id = request.session_id
+        config = {"configurable": {"thread_id": session_id}, "user_id": user_id}
+   
         
         async def event_generator():
             # Stream events from the graph
-            for event in helper_graph.stream(initial_state):
+            for event in helper_graph.stream(initial_state, config):
                 # Format event as JSON and send
                 yield f"data: {json.dumps(event, default=str)}\n\n"
         

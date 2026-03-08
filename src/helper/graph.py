@@ -1,5 +1,7 @@
 from langgraph.graph import START, StateGraph
 from langgraph.graph import END
+from langgraph.store.memory import InMemoryStore
+from langgraph.checkpoint.memory import MemorySaver
 
 import os
 from src.helper.node import decide_search, search_web, search_wikipedia, generate_answer
@@ -24,4 +26,9 @@ builder.add_edge("search_web", "generate_answer")
 builder.add_edge("search_wikipedia", "generate_answer")
 builder.add_edge("generate_answer", END)
 
-helper_graph = builder.compile()
+across_thread_memory = InMemoryStore()
+
+# Checkpointer for short-term (within-thread) memory
+within_thread_memory = MemorySaver()
+
+helper_graph = builder.compile(checkpointer=within_thread_memory, store=across_thread_memory)
