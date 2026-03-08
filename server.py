@@ -6,6 +6,7 @@ import logging
 
 from src.task_breaker.graph import graph
 from src.task_breaker.state import MainState, Task
+from src.helper.graph import helper_graph
 from langchain_core.messages import HumanMessage
 
 # Configure logging
@@ -126,6 +127,81 @@ async def stream_agent(request: AgentRequest):
         
     except Exception as e:
         logger.error(f"Error streaming agent: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/invoke_helper", response_model=AgentResponse)
+async def invoke_helper(request: AgentRequest):
+    """
+    Invoke the helper agent with a user question.
+    
+    Args:
+        request: AgentRequest containing the question to process
+        
+    Returns:
+        AgentResponse with the agent's answer
+    """
+    try:
+        # Create initial state with the user question
+        initial_state = {
+            "messages": [HumanMessage(content=request.message)],
+            "context": []
+        }
+        
+        logger.info(f"Processing question: {request.message}")
+        
+        # Invoke the graph
+        result = helper_graph.invoke(initial_state)
+        
+        # Get the last message from the agent
+        messages = result.get("messages", [])
+        last_message = messages[-1].content if messages else "No response"
+        
+        return AgentResponse(
+            success=True,
+            message=str(last_message),
+            tasks=[],  # No tasks for helper
+            user_id=request.user_id
+        )
+        
+    except Exception as e:
+        logger.error(f"Error invoking helper: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/stream_helper")
+async def stream_helper(request: AgentRequest):
+    """
+    Stream the helper agent response with intermediate steps.
+    
+    Args:
+        request: AgentRequest containing the question to process
+        
+    Returns:
+        Streaming response with intermediate states
+    """
+    try:
+        from fastapi.responses import StreamingResponse
+        import json
+        
+        # Create initial state with the user question
+        initial_state = {
+            "messages": [HumanMessage(content=request.message)],
+            "context": []
+        }
+        
+        logger.info(f"Streaming question: {request.message}")
+        
+        async def event_generator():
+            # Stream events from the graph
+            for event in helper_graph.stream(initial_state):
+                # Format event as JSON and send
+                yield f"data: {json.dumps(event, default=str)}\n\n"
+        
+        return StreamingResponse(event_generator(), media_type="text/event-stream")
+        
+    except Exception as e:
+        logger.error(f"Error streaming helper: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
