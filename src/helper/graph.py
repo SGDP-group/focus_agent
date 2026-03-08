@@ -17,8 +17,8 @@ builder.add_edge(START, "decide_search")
 builder.add_edge("decide_search", "search_web")
 builder.add_conditional_edges(
     "decide_search",
-    lambda state: "search_wikipedia" if state.needs_wikipedia else "generate_answer",
-    {"search_wikipedia": "search_wikipedia", "generate_answer": "generate_answer"}
+    lambda state: "search_wikipedia" if state.needs_wikipedia else "search_web",
+    {"search_wikipedia": "search_wikipedia", "search_web": "search_web"}
 )
 builder.add_edge("search_web", "generate_answer")
 builder.add_edge("search_wikipedia", "generate_answer")
