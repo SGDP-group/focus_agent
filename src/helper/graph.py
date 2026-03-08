@@ -1,26 +1,21 @@
 from langgraph.graph import START, StateGraph
-from langgraph.prebuilt import tools_condition
-from langgraph.prebuilt import ToolNode
+from langgraph.graph import END
+
 import os
+from src.helper.node import search_web, search_wikipedia, generate_answer
+from src.helper.state import HelperState
 
-from src.task_breaker.state import MainState
-from src.task_breaker.node import assistant
-from src.task_breaker.node import tools
-from src.utils import _set_env
 
-_set_env("LANGSMITH_API_KEY")
-os.environ["LANGSMITH_TRACING"] = "true"
-os.environ["LANGSMITH_PROJECT"] = "langchain-academy"
+builder = StateGraph(HelperState)
+builder.add_node("search_web", search_web)
+builder.add_node("search_wikipedia", search_wikipedia)
+builder.add_node("generate_answer", generate_answer)
 
-builder = StateGraph(MainState)
+# Flow
+builder.add_edge(START, "search_web")
+builder.add_edge(START, "search_wikipedia")
+builder.add_edge("search_web", "generate_answer")
+builder.add_edge("search_wikipedia", "generate_answer")
+builder.add_edge("generate_answer", END)
 
-builder.add_node("assistant", assistant)
-builder.add_node("tools", ToolNode(tools))
-
-builder.add_edge(START, "assistant")
-builder.add_conditional_edges(
-    "assistant",
-    tools_condition,
-)
-builder.add_edge("tools", "assistant")
-graph = builder.compile()
+helper_graph = builder.compile()
