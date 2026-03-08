@@ -37,6 +37,7 @@ class GenerateAnalystsState(TypedDict):
 class HelperState(BaseModel):
     messages: Annotated[list[AnyMessage], add_messages]
     context: Annotated[list, operator.add] = Field(default_factory=list)  # Source docs
+    needs_wikipedia: bool = Field(default=False)  # Whether to search Wikipedia
 
 class SearchQuery(BaseModel):
     search_query: str = Field(None, description="Search query for retrieval.")

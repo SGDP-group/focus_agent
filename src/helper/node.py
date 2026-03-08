@@ -4,6 +4,14 @@ from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.document_loaders import WikipediaLoader
 from src.llm import research_llm
 
+def decide_search(state: HelperState):
+    """ Decide if Wikipedia search is needed """
+    question = state.messages[0].content
+    prompt = f"Does this question require information from Wikipedia? Answer only 'yes' or 'no'.\n\nQuestion: {question}"
+    response = research_llm.invoke([SystemMessage(content=prompt)]).content.strip().lower()
+    needs_wikipedia = response == 'yes'
+    return {"needs_wikipedia": needs_wikipedia}
+
 def search_web(state: HelperState):
     
     """ Retrieve docs from web search """
