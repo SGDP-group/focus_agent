@@ -4,8 +4,8 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 import logging
 
-from src.graph import graph
-from src.state import MainState, Task
+from src.task_breaker.graph import graph
+from src.task_breaker.state import MainState, Task
 from langchain_core.messages import HumanMessage
 
 # Configure logging

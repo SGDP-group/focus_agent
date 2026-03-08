@@ -2,9 +2,9 @@ from langchain_core.messages.ai import AIMessage
 
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from src.tools import break_task_to_steps
+from src.task_breaker.tools import break_task_to_steps
 from src.llm import llm
-from src.state import MainState
+from src.task_breaker.state import MainState
 
 tools = [break_task_to_steps]
 llm_with_tools = llm.bind_tools(tools, parallel_tool_calls=False)

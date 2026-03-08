@@ -1,7 +1,7 @@
 from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import tool
-from src.state import Task
+from src.task_breaker.state import Task
 from src.llm import llm
 
 @tool
