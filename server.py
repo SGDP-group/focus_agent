@@ -2,17 +2,13 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
-import logging
 
 from src.task_breaker.graph import graph
 from src.task_breaker.state import MainState, Task
 from src.helper.graph import helper_graph
 from langchain_core.messages import HumanMessage
 from state import PydanticState
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from src.logger import logger
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -54,7 +50,7 @@ async def health_check():
 
 
 @app.post("/invoke-task-breakdown", response_model=AgentResponse)
-async def invoke_agent(request: AgentRequest):
+async def invoke_task_breakdown_agent(request: AgentRequest):
     """
     Invoke the focus agent with a user message.
     

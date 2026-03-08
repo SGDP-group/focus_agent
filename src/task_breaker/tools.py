@@ -5,7 +5,7 @@ from src.task_breaker.state import Task
 from src.llm import llm
 
 @tool
-def break_task_to_steps(task: str) -> Task:
+def break_task_to_steps(task: str) -> dict:
     """
     Uses an LLM to break a high-level task into actionable steps
     using LangChain structured output.
@@ -41,4 +41,5 @@ def break_task_to_steps(task: str) -> Task:
     response = llm.invoke(formatted_prompt)
 
     # 5) Parse the structured response
-    return parser.parse(response.content)
+    parsed = parser.parse(response.content)
+    return parsed.model_dump()

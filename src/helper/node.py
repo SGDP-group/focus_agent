@@ -3,6 +3,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_community.document_loaders import WikipediaLoader
 from src.llm import research_llm
+from src.logger import logger
 
 def decide_search(state: HelperState):
     """ Decide if Wikipedia search is needed """
