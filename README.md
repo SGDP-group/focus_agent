@@ -1,14 +1,14 @@
-# Focus Agent - Task Breakdown Tool
+# Focus Agent API
 
-A LangGraph agent that breaks down complex tasks into actionable steps using LLM-powered structured output.
+A FastAPI-based service that provides task breakdown and helper agent functionality using LangGraph and Groq LLM.
 
 ## Features
 
-- Breaks down high-level tasks into structured, actionable subtasks with recursive `Task` models
-- Uses LangChain with Pydantic for structured output parsing
-- Built with LangGraph for agent orchestration
-- Powered by Groq LLM (`moonshotai/kimi-k2-instruct-0905` by default)
-- Optional LangSmith tracing for debugging and monitoring
+- **Task Breakdown Agent**: Breaks down high-level tasks into structured, actionable subtasks
+- **Helper Agent**: Provides general assistance with streaming support
+- **LangGraph Integration**: Uses LangGraph for agent orchestration
+- **FastAPI Framework**: RESTful API with automatic documentation
+- **Groq LLM**: Powered by Groq's fast inference API
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ cd focus_agent
 uv sync
 ```
 
-This installs all dependencies defined in `pyproject.toml`, including `langchain`, `langchain-groq`, `langgraph`, `trustcall`, and others.
+This installs all dependencies defined in `pyproject.toml`.
 
 ### 4. Configure Environment Variables
 
@@ -70,63 +70,166 @@ LANGSMITH_API_KEY=your_langsmith_api_key_here
 **Where to get API keys:**
 
 - **Groq**: Sign up at [console.groq.com](https://console.groq.com/) and generate an API key
-- **LangSmith** *(optional)*: Sign up at [smith.langchain.com](https://smith.langchain.com/) for tracing and monitoring
+- **LangSmith** *(optional)*: Sign up at [smith.langchain.com](https://smith.langchain.com/) for tracing
 
-> **Note:** If `LANGSMITH_API_KEY` is not set in `.env`, you will be prompted to enter it at runtime.
+## Running the API
 
-## Running the Agent
-
-### Option 1: LangGraph Development Server
+### Development Mode
 
 ```bash
-uv run langgraph dev
+uv run python server.py
 ```
 
-This starts a local dev server with a web UI and API powered by the graph defined in `langgraph.json` (`src/graph.py:graph`). You can interact with the agent through the LangGraph Studio interface.
-
-### Option 2: Direct Python Invocation
+Or using uvicorn directly:
 
 ```bash
-uv run python -c "
-from src.graph import graph
-from langchain_core.messages import HumanMessage
-
-result = graph.invoke({'messages': [HumanMessage(content='organize a birthday party')]})
-print(result['messages'][-1].content)
-"
+uv run uvicorn server:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### Option 3: Import in Your Own Code
+The API will be available at `http://localhost:8000`
 
-```python
-from src.graph import graph
-from langchain_core.messages import HumanMessage
+### Production Mode
 
-def break_down_task(task_description: str) -> str:
-    result = graph.invoke({'messages': [HumanMessage(content=task_description)]})
-    return result['messages'][-1].content
+```bash
+uv run uvicorn server:app --host 0.0.0.0 --port 8000
+```
 
-print(break_down_task("plan a vacation"))
+## API Specification
+
+### Endpoints
+
+#### GET `/health`
+Health check endpoint.
+
+**Response:**
+```json
+{
+  "status": "ok"
+}
+```
+
+#### POST `/invoke-task-breakdown`
+Invoke the task breakdown agent.
+
+**Request Body:**
+```json
+{
+  "message": "Plan the annual office outing",
+  "user_id": "optional_user_id",
+  "session_id": "optional_session_id"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Task breakdown details...",
+  "tasks": [
+    {
+      "description": "Set budget and obtain approval from finance",
+      "status": "pending",
+      "subtasks": []
+    }
+  ],
+  "user_id": "optional_user_id"
+}
+```
+
+#### POST `/invoke_helper`
+Invoke the helper agent.
+
+**Request Body:**
+```json
+{
+  "message": "What is the capital of France?",
+  "user_id": "optional_user_id",
+  "session_id": "optional_session_id"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "The capital of France is Paris.",
+  "tasks": [],
+  "user_id": "optional_user_id"
+}
+```
+
+#### POST `/stream_helper`
+Stream the helper agent response.
+
+**Request Body:**
+```json
+{
+  "message": "Explain quantum computing",
+  "user_id": "optional_user_id",
+  "session_id": "optional_session_id"
+}
+```
+
+**Response:** Server-sent events stream.
+
+## Testing the API
+
+### Using the Interactive Documentation
+
+FastAPI provides automatic interactive API documentation.
+
+1. Start the server as described above
+2. Open your browser and go to `http://localhost:8000/docs`
+3. You'll see the Swagger UI with all endpoints
+4. Click on an endpoint to expand it
+5. Click "Try it out" to test the endpoint
+6. Fill in the request body and click "Execute"
+
+### Example Test Commands
+
+#### Health Check
+```bash
+curl http://localhost:8000/health
+```
+
+#### Task Breakdown
+```bash
+curl -X POST "http://localhost:8000/invoke-task-breakdown" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "Plan a birthday party"}'
+```
+
+#### Helper Agent
+```bash
+curl -X POST "http://localhost:8000/invoke_helper" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is machine learning?"}'
 ```
 
 ## Project Structure
 
 ```
 focus_agent/
+├── server.py           # FastAPI application and endpoints
+├── state.py            # Pydantic state models
 ├── src/
-│   ├── graph.py        # LangGraph graph definition (entry point for langgraph dev)
 │   ├── llm.py          # Groq LLM configuration
-│   ├── node.py         # Assistant node, system prompt, and tool binding
-│   ├── state.py        # Pydantic models: Task (recursive) and MainState
-│   ├── tools.py        # break_task_to_steps tool using structured output
-│   └── utils.py        # Helper to load env vars with fallback prompt
-├── agent.py            # Alternate graph build with in-memory checkpointer
-├── state.py            # Alternate PydanticState (with servers field)
-├── logger.py           # Basic logging setup
-├── langgraph.json      # LangGraph CLI/dev server configuration
-├── pyproject.toml      # Project metadata and dependencies
-├── .env                # Environment variables (not committed — listed in .gitignore)
-└── README.md
+│   ├── logger.py       # Logging setup
+│   ├── utils.py        # Utility functions
+│   ├── helper/
+│   │   ├── graph.py    # Helper agent graph
+│   │   ├── node.py     # Helper agent nodes
+│   │   ├── state.py    # Helper agent state
+│   │   └── tools.py    # Helper agent tools
+│   └── task_breaker/
+│       ├── graph.py    # Task breakdown graph
+│       ├── node.py     # Task breakdown nodes
+│       ├── state.py    # Task breakdown state
+│       └── tools.py    # Task breakdown tools
+├── pyproject.toml      # Project dependencies
+├── langgraph.json      # LangGraph configuration
+├── README.md           # This file
+└── .env                # Environment variables
 ```
 
 ## Configuration
@@ -136,49 +239,36 @@ focus_agent/
 Edit `src/llm.py` to use a different Groq-supported model:
 
 ```python
-model = 'llama-3.1-70b-versatile'  # or any other Groq model
+model = 'llama-3.1-70b-versatile'
 ```
 
 ### LangSmith Tracing
 
-Tracing is enabled by default in `src/graph.py`. To disable it, remove or comment out:
-
-```python
-os.environ["LANGSMITH_TRACING"] = "true"
-os.environ["LANGSMITH_PROJECT"] = "langchain-academy"
-```
+Tracing is configured in the graph files. To disable, remove the environment variable settings.
 
 ## Troubleshooting
 
 | Issue | Solution |
 |---|---|
 | **Missing API key error** | Ensure `.env` contains `GROQ_API_KEY` |
-| **Import errors** | Run `uv sync` to install all dependencies |
-| **Model not available** | Verify the model name is valid in your Groq account |
-| **Prompted for LANGSMITH_API_KEY** | Either add it to `.env` or press Enter to skip |
+| **Import errors** | Run `uv sync` to install dependencies |
+| **Port already in use** | Change the port in the uvicorn command |
+| **Model not available** | Verify the model name in your Groq account |
 
 ## Development
 
-### Adding New Tools
+### Adding New Endpoints
 
-1. Define your tool function in `src/tools.py` using the `@tool` decorator
-2. Add it to the `tools` list in `src/node.py`
-3. Update the system prompt in `src/node.py` if needed
+1. Add the endpoint function to `server.py`
+2. Define the request/response models using Pydantic
+3. Update this README with the new API specification
 
-### Quick Tool Test
+### Running Tests
 
 ```bash
-uv run python -c "from src.tools import break_task_to_steps; print(break_task_to_steps.invoke({'task': 'test task'}))"
+uv run pytest
 ```
 
 ## License
 
 Add your license information here.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request

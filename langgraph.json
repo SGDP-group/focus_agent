@@ -1,7 +1,9 @@
 {
     "dockerfile_lines": [],
     "graphs": {
-      "focus_agent": "./src/graph.py:graph"
+      "task_breaker_agent": "./src/task_breaker/graph.py:graph",
+      "helper_agent": "./src/helper/graph.py:helper_graph"
+
     },
     "env": "./.env",
     "python_version": "3.11",
