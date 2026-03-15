@@ -18,3 +18,4 @@ Task.model_rebuild()
 class MainState(BaseModel):
     messages: Annotated[list[AnyMessage], add_messages]
     tasks: List["Task"] = Field([], description="List of subtasks")
+    duration: int = Field(0, description="Total duration in minutes")

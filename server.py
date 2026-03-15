@@ -25,10 +25,19 @@ class AgentRequest(BaseModel):
     user_id: Optional[str] = Field(None, description="Optional user ID for tracking")
     session_id: Optional[str] = Field(None, description="Optional session ID for tracking")
 
+class TaskBreakdownRequest(BaseModel):
+    """Request model for task breakdown with title, description, and duration"""
+    title: str = Field(..., description="Title of the task")
+    description: str = Field(..., description="Description of the task")
+    duration: int = Field(..., description="Estimated duration in minutes")
+    user_id: Optional[str] = Field(None, description="Optional user ID for tracking")
+    session_id: Optional[str] = Field(None, description="Optional session ID for tracking")
+
 class TaskResponse(BaseModel):
     """Response model for tasks"""
     description: str
     status: str
+    estimated_time: int = 0
     subtasks: List["TaskResponse"] = []
 
 
@@ -50,24 +59,28 @@ async def health_check():
 
 
 @app.post("/invoke-task-breakdown", response_model=AgentResponse)
-async def invoke_task_breakdown_agent(request: AgentRequest):
+async def invoke_task_breakdown_agent(request: TaskBreakdownRequest):
     """
-    Invoke the focus agent with a user message.
+    Invoke the focus agent with a task breakdown request.
     
     Args:
-        request: AgentRequest containing the message to process
+        request: TaskBreakdownRequest containing title, description, and duration
         
     Returns:
         AgentResponse with the agent's response and tasks
     """
     try:
-        # Create initial state with the user message
+        # Create message from title, description, and duration
+        message = f"Title: {request.title}\nDescription: {request.description}\nDuration: {request.duration} minutes"
+        
+        # Create initial state with the task information
         initial_state = {
-            "messages": [HumanMessage(content=request.message)],
-            "tasks": []
+            "messages": [HumanMessage(content=message)],
+            "tasks": [],
+            "duration": request.duration
         }
         
-        logger.info(f"Processing message: {request.message}")
+        logger.info(f"Processing task breakdown: {request.title} - {request.description} ({request.duration} minutes)")
         
         # Invoke the graph
         result = graph.invoke(initial_state)
@@ -87,11 +100,11 @@ async def invoke_task_breakdown_agent(request: AgentRequest):
         )
         
     except Exception as e:
-        logger.error(f"Error invoking agent: {str(e)}", exc_info=True)
+        logger.error(f"Error invoking task breakdown agent: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/invoke_helper", response_model=AgentResponse)
+@app.post("/invoke-helper", response_model=AgentResponse)
 async def invoke_helper(request: AgentRequest):
     """
     Invoke the helper agent with a user question.
@@ -171,6 +184,7 @@ def _task_to_response(task: Task) -> TaskResponse:
     return TaskResponse(
         description=task.description,
         status=task.status,
+        estimated_time=task.estimated_time,
         subtasks=[_task_to_response(st) for st in task.subtasks]
     )
 

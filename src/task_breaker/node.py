@@ -13,6 +13,7 @@ SYSTEM_PROMPT = """You are a helpful AI assistant that helps break down tasks in
 When given a high-level task, use the 'break_task_to_steps' tool to decompose it into smaller tasks.
 You will receive the task title, description and the total duration in minutes.
 Each step should have a estimated time to complete in minutes. Always use the tool for task breakdown and respond with the tool output.
+Do not mention estimated times in the descriptions of the steps
 The total estimated time for the main task should be the sum of the estimated times of the subtasks.
 After getting the tool result, respond with EXACTLY the raw tool output without any modification, formatting, or explanation."""
 
@@ -24,7 +25,16 @@ def dict_to_task(d: dict) -> Task:
 
 def assistant(state: MainState) -> dict[str, list[AIMessage]]:
    logger.info(f"Processing task with {len(state.messages)} messages")
-   result = llm_with_tools.invoke([sys_msg] + state.messages)
+   
+   # Extract duration from state and add it to the last message if available
+   messages = [sys_msg] + state.messages
+   if hasattr(state, 'duration') and state.duration > 0:
+       # Add duration information to the last message for context
+       last_msg = messages[-1]
+       if isinstance(last_msg, HumanMessage):
+           last_msg.content += f"\n\nTotal duration: {state.duration} minutes"
+   
+   result = llm_with_tools.invoke(messages)
    logger.info("Generated response for task")
    
    # Try to parse the task from the response
