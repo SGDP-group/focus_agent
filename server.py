@@ -30,6 +30,7 @@ class TaskBreakdownRequest(BaseModel):
     title: str = Field(..., description="Title of the task")
     description: str = Field(..., description="Description of the task")
     duration: int = Field(..., description="Estimated duration in minutes")
+    maximum_time_per_task: Optional[int] = Field(None, description="Maximum time allowed per subtask in minutes")
     user_id: Optional[str] = Field(None, description="Optional user ID for tracking")
     session_id: Optional[str] = Field(None, description="Optional session ID for tracking")
 
@@ -64,7 +65,7 @@ async def invoke_task_breakdown_agent(request: TaskBreakdownRequest):
     Invoke the focus agent with a task breakdown request.
     
     Args:
-        request: TaskBreakdownRequest containing title, description, and duration
+        request: TaskBreakdownRequest containing title, description, duration, and maximum_time_per_task
         
     Returns:
         AgentResponse with the agent's response and tasks
@@ -72,15 +73,20 @@ async def invoke_task_breakdown_agent(request: TaskBreakdownRequest):
     try:
         # Create message from title, description, and duration
         message = f"Title: {request.title}\nDescription: {request.description}\nDuration: {request.duration} minutes"
+        if request.maximum_time_per_task:
+            message += f"\nMaximum time per subtask: {request.maximum_time_per_task} minutes"
         
         # Create initial state with the task information
         initial_state = {
             "messages": [HumanMessage(content=message)],
             "tasks": [],
-            "duration": request.duration
+            "duration": request.duration,
+            "maximum_time_per_task": request.maximum_time_per_task
         }
         
         logger.info(f"Processing task breakdown: {request.title} - {request.description} ({request.duration} minutes)")
+        if request.maximum_time_per_task:
+            logger.info(f"Maximum time per subtask: {request.maximum_time_per_task} minutes")
         
         # Invoke the graph
         result = graph.invoke(initial_state)

@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from langgraph.graph.message import add_messages
-from typing import Literal, Annotated, Dict, List
+from typing import Literal, Annotated, Dict, List, Optional
 from langchain_core.messages import AnyMessage
 from pydantic import BaseModel, Field
 
@@ -19,3 +19,4 @@ class MainState(BaseModel):
     messages: Annotated[list[AnyMessage], add_messages]
     tasks: List["Task"] = Field([], description="List of subtasks")
     duration: int = Field(0, description="Total duration in minutes")
+    maximum_time_per_task: Optional[int] = Field(None, description="Maximum time allowed per subtask in minutes")
