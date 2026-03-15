@@ -24,6 +24,7 @@ def break_task_to_steps(task: str) -> dict:
         You are an expert task breakdown assistant.
         Your job is to take a high-level task and break it down into clear,
         actionable steps. Each step should be concise and focused on a single action.
+        Suggest an estimated time to complete each step in minutes.
         Provide the output following this schema exactly:
 
         {format_instructions}

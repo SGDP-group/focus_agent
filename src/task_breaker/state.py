@@ -11,6 +11,7 @@ class Task(BaseModel):
         "pending", description="Status of the task"
     )
     subtasks: List["Task"] = Field([], description="List of subtasks")
+    estimated_time: int = Field(0, description="Estimated time to complete the task in minutes")
 
 Task.model_rebuild()
 
