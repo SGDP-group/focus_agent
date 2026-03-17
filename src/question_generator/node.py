@@ -40,13 +40,27 @@ def assistant(state: MainState) -> dict:
         # Tool will be called by ToolNode, just return the message
         return {"messages": [result]}
     
-    # If no tool calls, try to parse the questions from the response
+    # Check if result.content is a string representation of Question objects
+    content = result.content if hasattr(result, 'content') else str(result)
+    
+    # Try to parse the questions from the response
+    questions = []
+    
+    # First try JSON parsing
     try:
-        questions_list = json.loads(result.content)
+        questions_list = json.loads(content)
         if isinstance(questions_list, list):
-            parsed_questions = [Question(question=q if isinstance(q, str) else q.get('question', '')) for q in questions_list]
-            return {"messages": [result], "questions": parsed_questions}
+            questions = [Question(question=q if isinstance(q, str) else q.get('question', '')) for q in questions_list]
+            return {"messages": [result], "questions": questions}
     except json.JSONDecodeError:
         pass
+    
+    # If JSON parsing failed, try regex to extract Question objects from string representation
+    import re
+    pattern = r"Question\(question='([^']*)'\)"
+    matches = re.findall(pattern, content)
+    if matches:
+        questions = [Question(question=q) for q in matches]
+        return {"messages": [result], "questions": questions}
     
     return {"messages": [result]}
