@@ -2,7 +2,9 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.tools import tool
 from src.question_generator.state import Question
+from typing import List
 from src.llm import llm
+import json
 
 @tool
 def generate_questions(task: str) -> List[Question]:
@@ -15,29 +17,34 @@ def generate_questions(task: str) -> List[Question]:
         List[Question]: A list of generated questions.
     """
 
-    # 1) Create output parser based on the Task schema
-    parser = PydanticOutputParser(pydantic_object=Question)
-
-    # 2) Build the prompt
+    # Create a simple schema for list of questions
     prompt = PromptTemplate.from_template(
         """
         You are an expert question generator.
-        Your job is to take a high-level task and generate a list of questions that would help understand the goal, purpose, duration, deadlines and other relevant information.
-        Provide the output following this schema exactly:
-
-        {format_instructions}
+        Your job is to take a high-level task and generate a list of 5 questions that would help understand the goal, purpose, duration, deadlines and other relevant information.
+        Return the output as a JSON object with a "question" key containing a list of question strings.
+        Example format: {{"question": ["question 1", "question 2", ...]}}
 
         Task: {task}
         """
     )
 
-    # 3) Combine system/user prompt with format instructions
-    formatted_prompt = prompt.format(
-        task=task,
-        format_instructions=parser.get_format_instructions()
-    )
-
+    formatted_prompt = prompt.format(task=task)
+    
     response = llm.invoke(formatted_prompt)
+    
+    # Parse the JSON response
+    try:
+        data = json.loads(response.content)
+        questions_list = data.get('question', [])
+        
+        # Convert to List[Question]
+        if isinstance(questions_list, list):
+            return [Question(question=q) for q in questions_list]
+    except json.JSONDecodeError:
+        pass
+    
+    return []
 
-    # 5) Parse the structured response
-    return parser.parse(response.content)
+
+tools = [generate_questions]
