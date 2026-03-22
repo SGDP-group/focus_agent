@@ -6,8 +6,9 @@ from typing import List, Optional
 from src.task_breaker.graph import graph
 from src.task_breaker.state import MainState, Task
 from src.helper.graph import helper_graph
+from src.question_generator.graph import question_generator_graph
+from src.question_generator.state import Question as QuestionModel
 from langchain_core.messages import HumanMessage
-from state import PydanticState
 from src.logger import logger
 
 # Initialize FastAPI app
@@ -45,11 +46,24 @@ class TaskResponse(BaseModel):
 TaskResponse.model_rebuild()
 
 
+class QuestionResponse(BaseModel):
+    """Response model for questions"""
+    question: str = Field(..., description="Generated question")
+
+
+class QuestionGeneratorRequest(BaseModel):
+    """Request model for question generator"""
+    task: str = Field(..., description="High-level task to generate questions for")
+    user_id: Optional[str] = Field(None, description="Optional user ID for tracking")
+    session_id: Optional[str] = Field(None, description="Optional session ID for tracking")
+
+
 class AgentResponse(BaseModel):
     """Response model for agent output"""
     success: bool
     message: str
     tasks: List[TaskResponse] = []
+    questions: List[QuestionResponse] = []
     user_id: Optional[str] = None
 
 
@@ -145,6 +159,62 @@ async def invoke_helper(request: AgentRequest):
         
     except Exception as e:
         logger.error(f"Error invoking helper: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/invoke-question-generator", response_model=AgentResponse)
+async def invoke_question_generator(request: QuestionGeneratorRequest):
+    """
+    Invoke the question generator agent with a task.
+    
+    Args:
+        request: QuestionGeneratorRequest containing the task to generate questions for
+        
+    Returns:
+        AgentResponse with the generated questions
+    """
+    try:
+        # Create initial state with the task
+        initial_state = {
+            "task": request.task,
+            "messages": [],
+            "questions": []
+        }
+        
+        user_id = request.user_id
+        logger.info(f"Processing question generation for task: {request.task}")
+        
+        result = question_generator_graph.invoke(initial_state)
+        
+        # Extract questions from result
+        questions_list = result.get("questions", [])
+        questions = [
+            QuestionResponse(question=q.question) 
+            for q in questions_list
+        ] if questions_list else []
+        
+        # Get the last message from the agent
+        messages = result.get("messages", [])
+        last_message = messages[-1].content if messages else f"Generated {len(questions)} questions"
+        
+        # If questions are empty but message contains Question objects, try to parse them
+        if not questions and last_message:
+            import re
+            # Try to extract Question objects from the message string
+            pattern = r"Question\(question='([^']*)'\)"
+            matches = re.findall(pattern, last_message)
+            if matches:
+                questions = [QuestionResponse(question=q) for q in matches]
+        
+        return AgentResponse(
+            success=True,
+            message=str(last_message),
+            questions=questions,
+            user_id=user_id
+        )
+        
+    except Exception as e:
+        logger.error(f"Error invoking question generator: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

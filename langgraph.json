@@ -2,7 +2,7 @@
     "dockerfile_lines": [],
     "graphs": {
       "task_breaker_agent": "./src/task_breaker/graph.py:graph",
-      "helper_agent": "./src/helper/graph.py:helper_graph"
+      "question_generator_agent": "./src/question_generator/graph.py:question_generator_graph"
 
     },
     "env": "./.env",
