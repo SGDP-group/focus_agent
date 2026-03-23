@@ -1,4 +1,7 @@
-# Focus Agent API
+# focus_agent
+The task handling agent for SGDP project
+
+# Focus Agent - Task Breakdown Tool
 
 A FastAPI-based service that provides task breakdown and helper agent functionality using LangGraph and Groq LLM.
 
