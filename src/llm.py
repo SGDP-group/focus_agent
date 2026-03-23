@@ -9,3 +9,14 @@ llm = ChatGroq(
     model=model,
     temperature=0.1,
 )
+
+
+research_llm = ChatGroq(
+    model=model,
+    temperature=0.1,
+)
+
+question_generator_llm = ChatGroq(
+    model=model,
+    temperature=0.1,
+)
